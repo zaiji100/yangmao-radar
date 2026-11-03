@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>羊毛雷达 · 中美新羊毛机会</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐑</text></svg>">
+<link rel="stylesheet" href="style.css">
+<script>
+  try { const t = localStorage.getItem("radar-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-inner">
+    <div class="brand">
+      <span class="logo">🐑</span>
+      <div>
+        <h1>羊毛雷达</h1>
+        <p class="tagline">中国 · 美国 · 新加坡，按人群圈子整理的羊毛机会</p>
+      </div>
+    </div>
+    <div class="seg" id="timeSeg" role="tablist" aria-label="时间范围"></div>
+    <label class="search">
+      <input id="q" type="search" placeholder="搜索标题、来源…  按 / 聚焦" autocomplete="off">
+    </label>
+    <button class="icon-btn" id="themeBtn" title="切换深浅色" aria-label="切换深浅色">◐</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="status-line" id="statusLine"></section>
+
+  <section class="filters">
+    <div class="filter-group"><span class="filter-label">场景</span><div class="chips" id="sceneChips"></div></div>
+    <div class="filter-group"><span class="filter-label">地区</span><div class="chips" id="regionChips"></div></div>
+    <div class="filter-group"><span class="filter-label">排序</span><div class="chips" id="sortChips"></div></div>
+  </section>
+
+  <section id="circleGrid" class="circle-area" aria-label="人群圈子"></section>
+  <section id="catBar" class="cat-bar" hidden></section>
+
+  <section id="content"></section>
+
+  <details class="sources" id="sourcesBox">
+    <summary>信息源与监听状态</summary>
+    <div id="sources"></div>
+  </details>
+
+  <footer class="foot">
+    <p>数据来自公开 RSS / API，按关键词自动筛选和分类，可能有误判或漏判。活动真伪、参与条件与风险请以原帖和官方规则为准。</p>
+  </footer>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
