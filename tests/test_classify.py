@@ -89,6 +89,7 @@ class TestClassify(unittest.TestCase):
         self.assertTrue(deal("摇一摇有水 快", "xb-zuanke"))
         self.assertFalse(deal("闲鱼真神奇，二手衣服一大把人要", "xb-zuanke"))
         self.assertFalse(deal("抖音招行还款优惠没了吗", "xb-zuanke"))
+        self.assertFalse(deal("内存条啥时候能降价啊", "nodeseek"))
         self.assertFalse(deal("社区速递 164 | 1500 元圆梦昔日卡皇与派友们做的 AI 平替", "sspai"))
         self.assertFalse(deal("Any update on IBKR Margin Update?", "reddit-sgfi"))
         self.assertTrue(deal("Pizza Hut Offers 1-FOR-1 Melts at S$9.95", "mothership"))
