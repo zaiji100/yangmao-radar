@@ -1,5 +1,5 @@
-# 每小时抓一轮羊毛，状态提交回仓库，网页发布到 GitHub Pages。
-# 启用：Settings → Pages → Source 选「GitHub Actions」。
+# 每小时抓一轮羊毛，用 Claude Haiku 5.5 审核，状态提交回仓库，网页发布到 GitHub Pages。
+# 启用：Settings → Pages → Source 选「GitHub Actions」；AI 审核需要在 Settings → Secrets 配置 ANTHROPIC_API_KEY。
 name: scan
 
 on:
@@ -22,13 +22,17 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: 抓取并生成网页数据
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+      - name: 抓取、AI 审核并生成网页数据
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python3 run.py
       - name: 保存状态
         run: |

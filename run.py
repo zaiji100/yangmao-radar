@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""羊毛雷达：抓取 → 筛选 → 分类 → 生成网页。只依赖 Python 3.9+ 标准库。
+"""羊毛雷达：抓取 → 筛选 → AI 审核 → 生成网页。
+
+抓取只依赖标准库；AI 审核需要 anthropic 包和 ANTHROPIC_API_KEY，缺了就退回关键词规则。
 
   python3 run.py                     抓一轮，更新 data/state.json 和 site/data.js
   python3 run.py --only doc,v2ex-free  只抓指定来源（调试用）
   python3 run.py --rebuild           不抓取，只按当前分类规则重新导出网页数据
+  python3 run.py --review            不抓取，只让 AI 审核待审条目并导出（需要 ANTHROPIC_API_KEY）
   python3 run.py serve               本地常驻：每 30 分钟抓一轮，同时在 http://127.0.0.1:8000 提供网页
 """
 
@@ -22,6 +25,7 @@ from urllib.parse import urlparse
 from radar.build import export
 from radar.classify import is_deal
 from radar.fetchers import fetch_source
+from radar.llm import review
 from radar.sources import SOURCES
 from radar.store import ingest, load_state, prune, save_state
 
@@ -79,17 +83,25 @@ def scan(only=None):
         }
         log(f"  ✓ {src['name']}: 抓到 {len(entries)}，羊毛 {len(deals)}，新增 {new}")
     prune(state, now)
-    state["runs"] = (state.get("runs", []) + [{"at": now, "new": total_new, "secs": round(time.time() - started)}])[-200:]
+    ai = review(state, SOURCES, now, log=log)
+    run_info = {"at": now, "new": total_new, "secs": round(time.time() - started)}
+    if ai.get("enabled"):
+        run_info.update(ai_reviewed=ai["reviewed"], ai_cost=ai["cost"])
+    state["runs"] = (state.get("runs", []) + [run_info])[-200:]
     save_state(STATE_FILE, state)
     shown = export(state, SOURCES, SITE_DIR, now)
     ok = sum(1 for s in SOURCES if state["sources"].get(s["id"], {}).get("ok"))
     log(f"完成：新增 {total_new} 条，网页展示近 7 天 {shown} 条，信息源 {ok}/{len(SOURCES)} 正常")
 
 
-def rebuild():
+def rebuild(with_review=False):
     state = load_state(STATE_FILE)
-    shown = export(state, SOURCES, SITE_DIR, int(time.time()))
-    log(f"已按当前规则重新导出：近 7 天 {shown} 条")
+    now = int(time.time())
+    if with_review:
+        review(state, SOURCES, now, log=log)
+        save_state(STATE_FILE, state)
+    shown = export(state, SOURCES, SITE_DIR, now)
+    log(f"已重新导出：近 7 天 {shown} 条")
 
 
 def serve(port, interval):
@@ -126,11 +138,12 @@ def main():
     ap.add_argument("command", nargs="?", default="scan", choices=["scan", "serve"])
     ap.add_argument("--only", help="只抓这些来源 id，逗号分隔")
     ap.add_argument("--rebuild", action="store_true", help="不抓取，只重新导出网页数据")
+    ap.add_argument("--review", action="store_true", help="不抓取，只做 AI 审核并导出")
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--interval", type=int, default=30, help="serve 模式的抓取间隔（分钟）")
     args = ap.parse_args()
-    if args.rebuild:
-        rebuild()
+    if args.rebuild or args.review:
+        rebuild(with_review=args.review)
     elif args.command == "serve":
         serve(args.port, args.interval)
     else:

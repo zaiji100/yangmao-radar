@@ -27,17 +27,26 @@
     ...it,
     day: dayKey(it.ts),
     scene: (circleMap[it.c] || {}).scene || "life",
-    text: `${it.t} ${it.sn} ${(catMap[it.k] || {}).name || ""} ${(circleMap[it.c] || {}).name || ""}`.toLowerCase(),
-    score: (it.h || 0) + (it.a ? it.a.length * 15 : 0),
+    heat: (it.h || 0) + (it.a ? it.a.length * 15 : 0),
   }));
+  for (const it of items) {
+    it.text = `${it.t} ${it.ot || ""} ${it.sn} ${(catMap[it.k] || {}).name || ""} ${(circleMap[it.c] || {}).name || ""}`.toLowerCase();
+  }
+  const AI_ON = items.some((it) => it.q !== null && it.q !== undefined);
+  const QUALITY = [
+    { id: "4", name: "🔥 好毛", desc: "AI 评 4–5 分：价值高、门槛低" },
+    { id: "3", name: "值得薅", desc: "AI 评 3 分及以上" },
+    { id: "", name: "全部", desc: "含普通优惠和待 AI 审核的条目" },
+  ];
 
   // ---------- 状态（同步到地址栏，方便收藏 / 分享） ----------
-  const DEFAULT = { t: "today", sc: "", r: "", c: "", k: "", q: "", s: "new" };
+  const DEFAULT = { t: "today", sc: "", r: "", c: "", k: "", q: "", s: "new", m: AI_ON ? "3" : "" };
   const S = { ...DEFAULT };
   let limit = 150;
   function readHash() {
     const p = new URLSearchParams(location.hash.slice(1));
     for (const key of Object.keys(DEFAULT)) S[key] = p.get(key) ?? DEFAULT[key];
+    if (S.s === "hot") S.s = "best";
     $("q").value = S.q;
   }
   function writeHash() {
@@ -58,13 +67,16 @@
   const inTime = (it, t) => t === "7d" || it.day === today();
   const inRegion = (it, r) => !r || REGION_FILTERS.find((f) => f.id === r).match.includes(it.r);
   const inQuery = (it, q) => !q || q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => it.text.includes(w));
+  const inQuality = (it, m) => !m || (it.q != null && it.q >= Number(m));
   const base = (o = {}) => {
     const f = { ...S, ...o };
-    return items.filter((it) => inTime(it, f.t) && (!f.sc || it.scene === f.sc) && inRegion(it, f.r) && inQuery(it, f.q));
+    return items.filter((it) => inTime(it, f.t) && (!f.sc || it.scene === f.sc) && inRegion(it, f.r)
+      && inQuality(it, f.m) && inQuery(it, f.q));
   };
   const countBy = (list, key) => list.reduce((m, it) => ((m[it[key]] = (m[it[key]] || 0) + 1), m), {});
+  // 原始数据已按时间倒序；「最值」先看 AI 分数，再看热度
   const sorted = (list) =>
-    S.s === "hot" ? [...list].sort((a, b) => b.score - a.score || b.ts - a.ts) : list; // 原始数据已按时间倒序
+    S.s === "best" ? [...list].sort((a, b) => (b.q ?? -1) - (a.q ?? -1) || b.heat - a.heat || b.ts - a.ts) : list;
 
   // ---------- 渲染工具 ----------
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -99,10 +111,14 @@
       it.h ? `<span title="评论 / 回复 / 热度">💬 ${it.h}</span>` : "",
       fresh ? '<span class="new">新</span>' : "",
       it.a && it.a.length ? `<span class="also">也见于 ${esc(it.a.join("、"))}</span>` : "",
+      AI_ON && it.q == null ? '<span class="pending" title="还没轮到 AI 审核，当前按关键词规则归类">待审</span>' : "",
     ].join("");
+    const badge = it.q >= 5 ? '<span class="grade g5">大毛</span>' : it.q === 4 ? '<span class="grade g4">好毛</span>' : "";
+    const tip = [it.why && `AI：${it.why}（${it.q} 分）`, it.ot && `原帖：${it.ot}`, it.d].filter(Boolean).join("\n");
     return `<div class="item">
       <span class="flag" title="${esc(reg.name)}">${reg.flag}</span>
-      <a class="t" href="${esc(it.u)}" target="_blank" rel="noopener noreferrer" title="${esc(it.d || it.t)}">${esc(it.t)}</a>
+      <div class="main"><a class="t" href="${esc(it.u)}" target="_blank" rel="noopener noreferrer" title="${esc(tip || it.t)}">${badge}${esc(it.t)}</a>
+        ${it.ot ? `<div class="ot">${esc(it.ot)}</div>` : ""}</div>
       ${it.v ? `<span class="val">${esc(it.v)}</span>` : "<span></span>"}
       <div class="meta">${meta}</div>
     </div>`;
@@ -126,7 +142,16 @@
       stale ? `<span class="stale">数据已 ${Math.floor(age / 3600)} 小时未更新，检查抓取任务是否在运行</span>` : "",
       `<span>信息源 ${ok}/${D.sources.length} 正常</span>`,
       `<span>今日 ${todayNew} 条 · 近 7 天 ${items.length} 条</span>`,
+      aiStatus(),
     ].join("");
+  }
+
+  function aiStatus() {
+    const L = D.llm || {};
+    if (!L.enabled) return `<span title="${esc(L.error || "")}">🤖 AI 审核未开启，当前按关键词规则筛选</span>`;
+    const pend = items.filter((it) => it.q == null).length;
+    return `<span title="${esc(L.error || "")}">🤖 AI 审核：Claude Haiku 5.5${pend ? ` · 待审 ${pend} 条` : ""}`
+      + ` · 近 24 小时约 $${(L.cost_24h || 0).toFixed(3)}${L.error ? ' · <b class="stale">有报错</b>' : ""}</span>`;
   }
 
   function renderChips() {
@@ -142,8 +167,13 @@
         return `<button class="chip ${S.r === f.id ? "on" : ""}" data-r="${f.id}">${f.name}<span class="n">${n}</span></button>`;
       })
       .join("");
-    $("sortChips").innerHTML = [["new", "最新"], ["hot", "最热"]]
+    $("sortChips").innerHTML = [["new", "最新"], ["best", AI_ON ? "最值" : "最热"]]
       .map(([id, name]) => `<button class="chip ${S.s === id ? "on" : ""}" data-s="${id}">${name}</button>`)
+      .join("");
+    $("qualityGroup").hidden = !AI_ON;
+    const qpool = base({ m: "" });
+    $("qualityChips").innerHTML = QUALITY
+      .map((g) => `<button class="chip ${S.m === g.id ? "on" : ""}" data-m="${g.id}" title="${esc(g.desc)}">${g.name}<span class="n">${qpool.filter((it) => inQuality(it, g.id)).length}</span></button>`)
       .join("");
   }
 
@@ -206,7 +236,7 @@
     if (!list.length) { $("content").innerHTML = emptyHTML(); return; }
     const shown = sorted(list).slice(0, limit);
     let html = "";
-    if (S.s === "hot") {
+    if (S.s === "best") {
       html = `<div class="list">${shown.map((it) => itemHTML(it, true)).join("")}</div>`;
     } else {
       const groups = [];
@@ -271,6 +301,7 @@
     else if ("sc" in d) set({ sc: d.sc, c: "", k: "" });
     else if ("r" in d) set({ r: d.r });
     else if ("s" in d) set({ s: d.s });
+    else if ("m" in d) set({ m: d.m });
     else if (b.classList.contains("tag")) { set({ c: d.c, k: d.k }); window.scrollTo({ top: 0, behavior: "smooth" }); }
     else if ("c" in d) {
       set({ c: S.c === d.c && b.classList.contains("circle") ? "" : d.c, k: "" });
