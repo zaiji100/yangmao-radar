@@ -25,16 +25,21 @@ UA = (
 MAX_BYTES = 8 * 1024 * 1024
 
 
-def curl_get(url, timeout):
+def curl_get(url, timeout, retries=1):
     """部分站点（Cloudflare）按 TLS 指纹拦截 Python，curl 可以正常访问。"""
-    proc = subprocess.run(
-        ["curl", "-sSL", "--compressed", "-m", str(timeout), "-A", UA, "-w", "\n%{http_code}", url],
-        capture_output=True, timeout=timeout + 5,
-    )
-    body, _, code = proc.stdout.rpartition(b"\n")
-    if proc.returncode != 0 or code != b"200":
+    for attempt in range(retries + 1):
+        proc = subprocess.run(
+            ["curl", "-sSL", "--compressed", "-m", str(timeout), "-A", UA, "-w", "\n%{http_code}", url],
+            capture_output=True, timeout=timeout + 5,
+        )
+        body, _, code = proc.stdout.rpartition(b"\n")
+        if proc.returncode == 0 and code == b"200":
+            return body[:MAX_BYTES]
+        if code == b"429" and attempt < retries:  # 共享出口 IP（如 GitHub Actions）容易撞限流，等一下再试
+            time.sleep(8)
+            continue
         raise RuntimeError(f"curl 回退失败：HTTP {code.decode() or '?'} {proc.stderr.decode()[:80]}".strip())
-    return body[:MAX_BYTES]
+    raise RuntimeError("unreachable")
 
 
 def http_get(url, timeout=20, retries=1):
@@ -279,4 +284,6 @@ PARSERS = {
 def fetch_source(src):
     raw = http_get(src["url"])
     entries = PARSERS[src["kind"]](raw, src)
+    if src["kind"] == "feed" and not entries and not re.search(rb"<(?:rss|feed|rdf:RDF)\b", raw[:2000]):
+        raise RuntimeError("返回的不是 RSS/Atom，可能被反爬拦截")
     return entries[: src.get("limit", 300)]

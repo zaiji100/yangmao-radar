@@ -37,8 +37,6 @@ SOURCES = [
      "url": "https://www.v2ex.com/api/topics/latest.json", "circles": ["ai", "dev"]},
     {"id": "linuxdo-welfare", "name": "Linux.do · 福利羊毛", "kind": "feed", "region": "CN", "mode": "pass",
      "url": "https://linux.do/c/welfare/36.rss", "circles": ["ai", "money", "fun"]},
-    {"id": "linuxdo-latest", "name": "Linux.do · 最新", "kind": "feed", "region": "CN", "mode": "strict",
-     "url": "https://linux.do/latest.rss", "circles": ["ai", "dev"]},
     {"id": "nodeseek", "name": "NodeSeek", "kind": "feed", "region": "CN", "mode": "strict",
      "url": "https://rss.nodeseek.com/", "circles": ["dev"]},
     {"id": "smzdm-haitao", "name": "什么值得买 · 海淘", "kind": "feed", "region": "US", "mode": "pass",

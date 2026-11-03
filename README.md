@@ -2,8 +2,10 @@
 
 持续扫描中国、美国、新加坡的羊毛机会，按「场景 → 人群圈子 → 细分类」整理成网页，可以看今日和近 7 天的羊毛。
 
+线上地址：**https://zaiji100.github.io/yangmao-radar/**（GitHub Actions 每小时更新）
+
 - 只依赖 Python 3.9+ 标准库，不用装任何包
-- 39 个信息源：线报酷（赚客吧 / 新赚吧 / 豆瓣 / 微博线报）、V2EX、Linux.do、NodeSeek、什么值得买海淘、Doctor of Credit、美卡论坛、Reddit、Hip2Save、DealNews、MileLion、Sethisfy、Great Deals SG、Eatbook、GamerPower、OpenRouter 免费模型等
+- 38 个信息源：线报酷（赚客吧 / 新赚吧 / 豆瓣 / 微博线报）、V2EX、Linux.do、NodeSeek、什么值得买海淘、Doctor of Credit、美卡论坛、Reddit、Hip2Save、DealNews、MileLion、Sethisfy、Great Deals SG、Eatbook、GamerPower、OpenRouter 免费模型等
 - 网页是纯静态单页（`site/`），双击打开或放到任意静态托管都能用
 
 ## 快速开始
